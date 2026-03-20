@@ -82,13 +82,16 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 
 let players=[], current=0, currentTeam="default", seconds=0, interval, chart;
 
+// INIT
 function init(){
+    players=[];
     for(let i=0;i<12;i++){
         players.push({nome:"Giocatore "+(i+1),gol:0,assist:0,rec:0,persa:0,fallo:0});
     }
     drawAll();
 }
 
+// TIMER
 function startTimer(){interval=setInterval(()=>{seconds++;updateTimer();},1000);}
 function stopTimer(){clearInterval(interval);}
 function resetTimer(){seconds=0;updateTimer();}
@@ -98,39 +101,50 @@ function updateTimer(){
     document.getElementById("timer").innerText=m+":"+s;
 }
 
+// TEAM
 function salvaSquadra(){
     let nome=document.getElementById("teamName").value;
-    if(!nome)return alert("Nome squadra!");
+    if(!nome)return alert("Inserisci nome squadra");
     localStorage.setItem("team_"+nome,JSON.stringify(players));
     aggiornaLista();
 }
 
 function aggiornaLista(){
-    let s=document.getElementById("teamSelect"); s.innerHTML="";
-    for(let k in localStorage) if(k.startsWith("team_")){
-        let n=k.replace("team_","");
-        s.innerHTML+=`<option>${n}</option>`;
+    let s=document.getElementById("teamSelect");
+    s.innerHTML="";
+    for(let k in localStorage){
+        if(k.startsWith("team_")){
+            let n=k.replace("team_","");
+            s.innerHTML+=`<option>${n}</option>`;
+        }
     }
 }
 
 function caricaSquadra(){
     let n=document.getElementById("teamSelect").value;
     currentTeam=n;
-    players=JSON.parse(localStorage.getItem("team_"+n))||players;
+    players=JSON.parse(localStorage.getItem("team_"+n)) || players;
     drawAll();
 }
 
+// INPUT
 function drawInputs(){
     let h="";
-    players.forEach((p,i)=>h+=`<input id="p${i}" value="${p.nome}">`);
+    players.forEach((p,i)=>{
+        h+=`<input id="p${i}" value="${p.nome}">`;
+    });
     document.getElementById("inputs").innerHTML=h;
 }
 
 function salvaNomi(){
-    players.forEach((p,i)=>p.nome=document.getElementById("p"+i).value);
-    saveTeam(); drawPlayers();
+    players.forEach((p,i)=>{
+        p.nome=document.getElementById("p"+i).value;
+    });
+    saveTeam();
+    drawPlayers();
 }
 
+// PLAYERS
 function drawPlayers(){
     let h="";
     players.forEach((p,i)=>{
@@ -139,29 +153,43 @@ function drawPlayers(){
     document.getElementById("players").innerHTML=h;
 }
 
-function selectPlayer(i){current=i;drawPlayers();}
+function selectPlayer(i){
+    current=i;
+    drawPlayers();
+}
 
-function score(p){return (p.gol*3+p.assist*2+p.rec*2)-(p.persa*2+p.fallo*3);}
+// SCORE
+function score(p){
+    return (p.gol*3 + p.assist*2 + p.rec*2) - (p.persa*2 + p.fallo*3);
+}
 
+// ACTION
 function addStat(tipo){
     players[current][tipo]++;
     saveTeam();
-    drawStats(); best(); chartDraw();
+    drawStats();
+    best();
+    chartDraw();
     document.getElementById("coach").innerText=coach();
     analisi();
 }
 
+// STATS
 function drawStats(){
     let h="";
-    players.forEach(p=>h+=`<div>${p.nome} ⭐${score(p)}</div>`);
+    players.forEach(p=>{
+        h+=`<div>${p.nome} ⭐ ${score(p)}</div>`;
+    });
     document.getElementById("stats").innerHTML=h;
 }
 
+// MVP
 function best(){
     let b=players.reduce((a,b)=>score(a)>score(b)?a:b);
-    document.getElementById("best").innerText=b.nome+" "+score(b);
+    document.getElementById("best").innerText=b.nome+" ("+score(b)+")";
 }
 
+// COACH AI
 function coach(){
     let g=players.reduce((s,p)=>s+p.gol,0);
     let e=players.reduce((s,p)=>s+p.persa+p.fallo,0);
@@ -170,72 +198,95 @@ function coach(){
     return "⚖️ Equilibrata";
 }
 
+// ANALISI
 function analisi(){
     let tot=players.reduce((s,p)=>s+score(p),0);
     let best3=[...players].sort((a,b)=>score(b)-score(a)).slice(0,3);
     document.getElementById("advanced").innerHTML=
-    "Score:"+tot+"<br>Top:<br>"+best3.map(p=>p.nome).join("<br>");
+    "Score Totale: "+tot+"<br><br>Top 3:<br>"+best3.map(p=>p.nome+" ("+score(p)+")").join("<br>");
 }
 
+// RESET
 function resetMatch(){
-    players.forEach(p=>{p.gol=0;p.assist=0;p.rec=0;p.persa=0;p.fallo=0;});
-    saveTeam(); drawAll();
+    players.forEach(p=>{
+        p.gol=0;p.assist=0;p.rec=0;p.persa=0;p.fallo=0;
+    });
+    saveTeam();
+    drawAll();
 }
 
+// SAVE TEAM
 function saveTeam(){
     localStorage.setItem("team_"+currentTeam,JSON.stringify(players));
 }
 
+// MATCH SAVE
 function salvaPartita(){
-    let s=JSON.parse(localStorage.getItem("matches_"+currentTeam))||[];
-    s.push({data:new Date().toLocaleString(),team:players});
+    let s=JSON.parse(localStorage.getItem("matches_"+currentTeam)) || [];
+    s.push({data:new Date().toLocaleString(), team:players});
     localStorage.setItem("matches_"+currentTeam,JSON.stringify(s));
     storico();
 }
 
+// STORICO
 function storico(){
-    let s=JSON.parse(localStorage.getItem("matches_"+currentTeam))||[];
-    document.getElementById("storico").innerHTML=s.map(x=>x.data).join("<br>");
+    let s=JSON.parse(localStorage.getItem("matches_"+currentTeam)) || [];
+    document.getElementById("storico").innerHTML=
+    s.map(x=>x.data).join("<br>");
 }
 
+// CHART
 function chartDraw(){
-    let l=players.map(p=>p.nome);
-    let d=players.map(p=>score(p));
-    if(chart)chart.destroy();
+    let labels=players.map(p=>p.nome);
+    let data=players.map(p=>score(p));
+    if(chart) chart.destroy();
     chart=new Chart(document.getElementById("chart"),{
-        type:"bar",data:{labels:l,datasets:[{data:d}]}
+        type:"bar",
+        data:{labels:labels,datasets:[{data:data}]}
     });
 }
 
+// PDF
 function generaPDF(){
     const { jsPDF } = window.jspdf;
-    let doc=new jsPDF(); let y=10;
+    let doc=new jsPDF();
+    let y=10;
     doc.text("REPORT PARTITA",10,y); y+=10;
-    players.forEach(p=>{doc.text(p.nome+" "+score(p),10,y);y+=6;});
+    players.forEach(p=>{
+        doc.text(p.nome+" "+score(p),10,y);
+        y+=6;
+    });
     doc.save("report.pdf");
 }
 
+// BACKUP
 function exportData(){
     let data=JSON.stringify(localStorage);
     let blob=new Blob([data]);
     let a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
-    a.download="backup.json"; a.click();
+    a.download="backup.json";
+    a.click();
 }
 
 function importData(){
-    let i=document.createElement("input"); i.type="file";
-    i.onchange=e=>{
-        let r=new FileReader();
-        r.onload=()=>{let d=JSON.parse(r.result);
-            for(let k in d)localStorage.setItem(k,d[k]);
+    let input=document.createElement("input");
+    input.type="file";
+    input.onchange=e=>{
+        let reader=new FileReader();
+        reader.onload=()=>{
+            let data=JSON.parse(reader.result);
+            for(let k in data){
+                localStorage.setItem(k,data[k]);
+            }
             location.reload();
         };
-        r.readAsText(e.target.files[0]);
+        reader.readAsText(e.target.files[0]);
     };
-    i.click();
+    input.click();
 }
 
+// DRAW ALL
 function drawAll(){
     drawInputs();
     drawPlayers();
@@ -244,6 +295,7 @@ function drawAll(){
     aggiornaLista();
 }
 
+// START
 init();
 
 </script>
