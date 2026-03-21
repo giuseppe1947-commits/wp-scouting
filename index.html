@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WP ULTRA SCOUTING</title>
+<title>WP COACH PRO</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -20,21 +20,27 @@ button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:18px;}
 
 <body>
 
-<h2>🏊 WP ULTRA SCOUTING</h2>
+<h2>🏊 WP COACH PRO</h2>
 
 <div class="box">
-<input id="teamName" placeholder="Squadra">
-<input id="coachName" placeholder="Allenatore">
-<button onclick="salva()">Salva</button>
+<input id="team" placeholder="Squadra">
+<input id="coach" placeholder="Allenatore">
+<input id="avv" placeholder="Avversario">
 </div>
 
 <div class="box">
-<h3>⏱ Tempo: <span id="tempo">00:00</span></h3>
-<h3>Periodo: <span id="periodo">1</span></h3>
+<h3>🏁 Punteggio</h3>
+<h1 id="score">0 - 0</h1>
+<button onclick="goalUs()">+ NOI</button>
+<button onclick="goalThem()">+ AVV</button>
+</div>
+
+<div class="box">
+<h3>⏱ <span id="time">00:00</span> | Tempo <span id="period">1</span></h3>
 <button onclick="start()">START</button>
 <button onclick="stop()">STOP</button>
 <button onclick="reset()">RESET</button>
-<button onclick="nextPeriodo()">NEXT</button>
+<button onclick="next()">NEXT</button>
 </div>
 
 <div class="box" id="players"></div>
@@ -42,26 +48,22 @@ button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:18px;}
 <div class="box">
 <button onclick="stat('gol')" class="green">GOL</button>
 <button onclick="stat('assist')" class="blue">ASSIST</button>
-<button onclick="stat('errore')" class="red">ERRORE</button>
-<button onclick="cambio()">CAMBIO</button>
+<button onclick="stat('err')" class="red">ERRORE</button>
 </div>
 
 <div class="box" id="stats"></div>
 
 <div class="box"><canvas id="chart"></canvas></div>
 
-<div class="box">
-<button onclick="pdf()">PDF</button>
-</div>
+<div class="box"><button onclick="pdf()">PDF REPORT</button></div>
 
 <script>
 
-let players=[],current=0,sec=0,int,periodo=1,chart;
+let players=[],cur=0,sec=0,int,period=1,us=0,them=0,chart;
 
-// INIT
 function init(){
     for(let i=0;i<15;i++){
-        players.push({nome:"G"+(i+1),gol:0,assist:0,errore:0});
+        players.push({nome:"G"+(i+1),gol:0,assist:0,err:0});
     }
     draw();
 }
@@ -73,35 +75,38 @@ function reset(){sec=0;update();}
 function update(){
     let m=String(Math.floor(sec/60)).padStart(2,'0');
     let s=String(sec%60).padStart(2,'0');
-    document.getElementById("tempo").innerText=m+":"+s;
+    document.getElementById("time").innerText=m+":"+s;
 }
+function next(){period++;document.getElementById("period").innerText=period;}
 
-function nextPeriodo(){
-    periodo++;
-    document.getElementById("periodo").innerText=periodo;
+// SCORE
+function goalUs(){us++;updateScore();}
+function goalThem(){them++;updateScore();}
+function updateScore(){
+    document.getElementById("score").innerText=us+" - "+them;
 }
 
 // PLAYERS
 function draw(){
     let h="";
     players.forEach((p,i)=>{
-        h+=`<div class="player ${i==current?'selected':''}" onclick="sel(${i})">${p.nome}</div>`;
+        h+=`<div class="player ${i==cur?'selected':''}" onclick="sel(${i})">${p.nome}</div>`;
     });
     document.getElementById("players").innerHTML=h;
     stats();
     chartDraw();
 }
 
-function sel(i){current=i;draw();}
+function sel(i){cur=i;draw();}
 
 // STATS
 function stat(t){
-    players[current][t]++;
+    players[cur][t]++;
     draw();
 }
 
 function score(p){
-    return p.gol*3+p.assist*2-p.errore*2;
+    return p.gol*3+p.assist*2-p.err*2;
 }
 
 function stats(){
@@ -110,11 +115,6 @@ function stats(){
         h+=`${p.nome} ⭐ ${score(p)}<br>`;
     });
     document.getElementById("stats").innerHTML=h;
-}
-
-// CAMBIO
-function cambio(){
-    alert("Cambio giocatore manuale");
 }
 
 // CHART
@@ -128,11 +128,6 @@ function chartDraw(){
     });
 }
 
-// SAVE
-function salva(){
-    localStorage.setItem("team",JSON.stringify(players));
-}
-
 // PDF
 function pdf(){
     const { jsPDF } = window.jspdf;
@@ -140,6 +135,7 @@ function pdf(){
     let y=10;
 
     doc.text("REPORT PARTITA",10,y); y+=10;
+    doc.text("Score: "+us+"-"+them,10,y); y+=10;
 
     players.forEach(p=>{
         doc.text(p.nome+" "+score(p),10,y);
