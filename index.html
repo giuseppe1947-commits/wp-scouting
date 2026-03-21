@@ -10,7 +10,7 @@
 
 <style>
 body {font-family: Arial; background:#0f172a; color:white; text-align:center;}
-input {padding:8px;margin:3px;width:30%;border-radius:8px;border:none;}
+input {padding:8px;margin:3px;width:28%;border-radius:8px;border:none;}
 button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;}
 .player {background:#1e293b;margin:5px;padding:8px;border-radius:8px;cursor:pointer;}
 .selected {background:#2ecc71;}
@@ -25,6 +25,7 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 
 <div class="box">
 <input id="teamName" placeholder="Nome squadra">
+<input id="coachName" placeholder="Allenatore">
 <button onclick="salvaSquadra()">💾 Salva Squadra</button>
 <select id="teamSelect" onchange="caricaSquadra()"></select>
 </div>
@@ -38,7 +39,7 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 </div>
 
 <div class="box">
-<h3>👥 Giocatori</h3>
+<h3>👥 Giocatori (15)</h3>
 <div id="inputs"></div>
 <button onclick="salvaNomi()">Salva Nomi</button>
 </div>
@@ -82,10 +83,9 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 
 let players=[], current=0, currentTeam="default", seconds=0, interval, chart;
 
-// INIT
 function init(){
     players=[];
-    for(let i=0;i<12;i++){
+    for(let i=0;i<15;i++){
         players.push({nome:"Giocatore "+(i+1),gol:0,assist:0,rec:0,persa:0,fallo:0});
     }
     drawAll();
@@ -104,8 +104,12 @@ function updateTimer(){
 // TEAM
 function salvaSquadra(){
     let nome=document.getElementById("teamName").value;
+    let coach=document.getElementById("coachName").value;
+
     if(!nome)return alert("Inserisci nome squadra");
-    localStorage.setItem("team_"+nome,JSON.stringify(players));
+
+    let data={players:players, coach:coach};
+    localStorage.setItem("team_"+nome,JSON.stringify(data));
     aggiornaLista();
 }
 
@@ -123,7 +127,14 @@ function aggiornaLista(){
 function caricaSquadra(){
     let n=document.getElementById("teamSelect").value;
     currentTeam=n;
-    players=JSON.parse(localStorage.getItem("team_"+n)) || players;
+
+    let data=JSON.parse(localStorage.getItem("team_"+n));
+
+    if(data){
+        players=data.players || players;
+        document.getElementById("coachName").value=data.coach || "";
+    }
+
     drawAll();
 }
 
@@ -170,7 +181,7 @@ function addStat(tipo){
     drawStats();
     best();
     chartDraw();
-    document.getElementById("coach").innerText=coach();
+    document.getElementById("coach").innerText=coachAI();
     analisi();
 }
 
@@ -190,7 +201,7 @@ function best(){
 }
 
 // COACH AI
-function coach(){
+function coachAI(){
     let g=players.reduce((s,p)=>s+p.gol,0);
     let e=players.reduce((s,p)=>s+p.persa+p.fallo,0);
     if(e>g)return "⚠️ Troppi errori";
@@ -217,7 +228,7 @@ function resetMatch(){
 
 // SAVE TEAM
 function saveTeam(){
-    localStorage.setItem("team_"+currentTeam,JSON.stringify(players));
+    localStorage.setItem("team_"+currentTeam,JSON.stringify({players:players, coach:document.getElementById("coachName").value}));
 }
 
 // MATCH SAVE
@@ -251,11 +262,19 @@ function generaPDF(){
     const { jsPDF } = window.jspdf;
     let doc=new jsPDF();
     let y=10;
-    doc.text("REPORT PARTITA",10,y); y+=10;
+
+    let coach=document.getElementById("coachName").value;
+    doc.text("Allenatore: "+coach,10,y);
+    y+=10;
+
+    doc.text("REPORT PARTITA",10,y);
+    y+=10;
+
     players.forEach(p=>{
         doc.text(p.nome+" "+score(p),10,y);
         y+=6;
     });
+
     doc.save("report.pdf");
 }
 
@@ -302,3 +321,5 @@ init();
 
 </body>
 </html>
+
+
