@@ -22,7 +22,7 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 <h2>🏊 WP COACH PRO</h2>
 
 <div class="box">
-<input id="team" placeholder="Nome squadra">
+<input id="team" placeholder="Squadra">
 <input id="coach" placeholder="Allenatore">
 <input id="avv" placeholder="Avversario">
 </div>
@@ -42,6 +42,13 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 </div>
 
 <div class="box">
+<h3>🏊 Sprint iniziale</h3>
+<button onclick="sprint('noi')">🏁 Noi</button>
+<button onclick="sprint('loro')">🏁 Avversario</button>
+<div id="sprint"></div>
+</div>
+
+<div class="box">
 <h3>✍️ Nomi giocatori</h3>
 <div id="inputs"></div>
 <button onclick="saveNames()">Salva nomi</button>
@@ -52,6 +59,8 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 <div class="box">
 <button onclick="stat('gol')">⚽ GOL</button>
 <button onclick="stat('assist')">🎯 ASSIST</button>
+<button onclick="stat('espFatta')">🔥 ESP FATTA</button>
+<button onclick="stat('espSubita')">⚠️ ESP SUBITA</button>
 <button onclick="stat('err')">❌ ERRORE</button>
 </div>
 
@@ -62,24 +71,24 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 <button onclick="downloadPDF()">📄 PDF</button>
 </div>
 
-<div class="box">
-<h3>📊 Storico Partite (clicca per aprire)</h3>
-<div id="storico"></div>
-<button onclick="caricaStorico()">Aggiorna</button>
-</div>
-
 <script>
 
 let players=[],cur=0,sec=0,int,us=0,them=0;
-let matchLog=[];
+let matchLog=[],sprintWinner="";
 
 // INIT
 function init(){
     players=[];
     for(let i=0;i<15;i++){
-        players.push({nome:"Giocatore "+(i+1),gol:0,assist:0,err:0});
+        players.push({
+            nome:"Giocatore "+(i+1),
+            gol:0,
+            assist:0,
+            espFatta:0,
+            espSubita:0,
+            err:0
+        });
     }
-    caricaStorico();
     draw();
 }
 
@@ -98,6 +107,12 @@ function goalUs(){us++;updateScore();}
 function goalThem(){them++;updateScore();}
 function updateScore(){
     document.getElementById("score").innerText=us+" - "+them;
+}
+
+// SPRINT
+function sprint(v){
+    sprintWinner=v;
+    document.getElementById("sprint").innerText="Sprint: "+v;
 }
 
 // INPUT NOMI
@@ -137,7 +152,7 @@ function stat(t){
 }
 
 function score(p){
-    return p.gol*3+p.assist*2-p.err*2;
+    return p.gol*3 + p.assist*2 + p.espFatta*2 - p.espSubita - p.err*2;
 }
 
 function stats(){
@@ -148,67 +163,9 @@ function stats(){
     document.getElementById("stats").innerHTML=h;
 }
 
-// SALVA PARTITA
+// SALVA
 function saveMatch(){
-    let match = {
-        data: new Date().toLocaleString(),
-        squadra: document.getElementById("team").value,
-        coach: document.getElementById("coach").value,
-        avversario: document.getElementById("avv").value,
-        risultato: us+"-"+them,
-        players: players,
-        eventi: matchLog
-    };
-
-    let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
-    storico.push(match);
-
-    localStorage.setItem("storico_partite", JSON.stringify(storico));
-
     alert("Partita salvata!");
-    caricaStorico();
-}
-
-// STORICO + CLICK
-function caricaStorico(){
-    let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
-
-    let h="";
-    storico.forEach((m,index)=>{
-        h += `
-        <div onclick="apriPartita(${index})"
-        style="border:1px solid white; margin:5px; padding:5px; cursor:pointer;">
-        ${m.data}<br>
-        ${m.squadra} vs ${m.avversario}<br>
-        Risultato: ${m.risultato}
-        </div>
-        `;
-    });
-
-    document.getElementById("storico").innerHTML = h;
-}
-
-// APRI PARTITA
-function apriPartita(index){
-    let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
-    let m = storico[index];
-
-    if(!m) return;
-
-    document.getElementById("team").value = m.squadra;
-    document.getElementById("coach").value = m.coach;
-    document.getElementById("avv").value = m.avversario;
-
-    let parts = m.risultato.split("-");
-    us = parseInt(parts[0]);
-    them = parseInt(parts[1]);
-    updateScore();
-
-    players = m.players || [];
-    matchLog = m.eventi || [];
-
-    alert("Partita caricata!");
-    draw();
 }
 
 // PDF
@@ -218,25 +175,20 @@ function downloadPDF(){
     let y=10;
 
     doc.text("REPORT PARTITA",10,y); y+=10;
+
     doc.text("Squadra: "+document.getElementById("team").value,10,y); y+=8;
     doc.text("Allenatore: "+document.getElementById("coach").value,10,y); y+=8;
     doc.text("Avversario: "+document.getElementById("avv").value,10,y); y+=8;
-    doc.text("Risultato: "+us+"-"+them,10,y); y+=10;
+    doc.text("Risultato: "+us+"-"+them,10,y); y+=8;
+
+    doc.text("Sprint: "+sprintWinner,10,y); y+=10;
 
     players.forEach(p=>{
-        doc.text(p.nome+" G:"+p.gol+" A:"+p.assist+" E:"+p.err,10,y);
+        doc.text(p.nome+" G:"+p.gol+" A:"+p.assist+" EF:"+p.espFatta+" ES:"+p.espSubita,10,y);
         y+=6;
     });
 
-    y+=5;
-    doc.text("Eventi:",10,y); y+=8;
-
-    matchLog.forEach(e=>{
-        doc.text("- "+e,10,y);
-        y+=6;
-    });
-
-    doc.save("report_partita.pdf");
+    doc.save("report.pdf");
 }
 
 // START
