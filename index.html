@@ -63,9 +63,9 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 </div>
 
 <div class="box">
-<h3>📊 Storico Partite</h3>
+<h3>📊 Storico Partite (clicca per aprire)</h3>
 <div id="storico"></div>
-<button onclick="caricaStorico()">Aggiorna storico</button>
+<button onclick="caricaStorico()">Aggiorna</button>
 </div>
 
 <script>
@@ -148,7 +148,7 @@ function stats(){
     document.getElementById("stats").innerHTML=h;
 }
 
-// SALVA PARTITA DEFINITIVO
+// SALVA PARTITA
 function saveMatch(){
     let match = {
         data: new Date().toLocaleString(),
@@ -169,14 +169,15 @@ function saveMatch(){
     caricaStorico();
 }
 
-// STORICO
+// STORICO + CLICK
 function caricaStorico(){
     let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
 
     let h="";
-    storico.forEach(m=>{
+    storico.forEach((m,index)=>{
         h += `
-        <div style="border:1px solid white; margin:5px; padding:5px;">
+        <div onclick="apriPartita(${index})"
+        style="border:1px solid white; margin:5px; padding:5px; cursor:pointer;">
         ${m.data}<br>
         ${m.squadra} vs ${m.avversario}<br>
         Risultato: ${m.risultato}
@@ -187,11 +188,33 @@ function caricaStorico(){
     document.getElementById("storico").innerHTML = h;
 }
 
+// APRI PARTITA
+function apriPartita(index){
+    let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
+    let m = storico[index];
+
+    if(!m) return;
+
+    document.getElementById("team").value = m.squadra;
+    document.getElementById("coach").value = m.coach;
+    document.getElementById("avv").value = m.avversario;
+
+    let parts = m.risultato.split("-");
+    us = parseInt(parts[0]);
+    them = parseInt(parts[1]);
+    updateScore();
+
+    players = m.players || [];
+    matchLog = m.eventi || [];
+
+    alert("Partita caricata!");
+    draw();
+}
+
 // PDF
 function downloadPDF(){
     const { jsPDF } = window.jspdf;
     let doc=new jsPDF();
-
     let y=10;
 
     doc.text("REPORT PARTITA",10,y); y+=10;
