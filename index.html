@@ -5,16 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WP COACH PRO</title>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <style>
 body {font-family: Arial; background:#0f172a; color:white; text-align:center;}
-button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:18px;}
+button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:16px;}
 .player {padding:10px;margin:5px;border-radius:8px;background:#1e293b;}
 .selected {background:#2ecc71;}
 .box {background:#1e293b;padding:10px;margin:10px;border-radius:10px;}
-.green{background:#2ecc71;} .red{background:#e74c3c;} .blue{background:#3498db;}
+input {margin:3px;padding:8px;border-radius:5px;border:none;}
 </style>
 </head>
 
@@ -23,7 +20,7 @@ button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:18px;}
 <h2>🏊 WP COACH PRO</h2>
 
 <div class="box">
-<input id="team" placeholder="Squadra">
+<input id="team" placeholder="Nome squadra">
 <input id="coach" placeholder="Allenatore">
 <input id="avv" placeholder="Avversario">
 </div>
@@ -43,27 +40,32 @@ button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:18px;}
 <button onclick="next()">NEXT</button>
 </div>
 
+<!-- INSERIMENTO NOMI -->
+<div class="box">
+<h3>✍️ Inserisci nomi giocatori</h3>
+<div id="inputs"></div>
+<button onclick="saveNames()">Salva nomi</button>
+</div>
+
+<!-- GIOCATORI -->
 <div class="box" id="players"></div>
 
 <div class="box">
-<button onclick="stat('gol')" class="green">GOL</button>
-<button onclick="stat('assist')" class="blue">ASSIST</button>
-<button onclick="stat('err')" class="red">ERRORE</button>
+<button onclick="stat('gol')">⚽ GOL</button>
+<button onclick="stat('assist')">🎯 ASSIST</button>
+<button onclick="stat('err')">❌ ERRORE</button>
 </div>
 
 <div class="box" id="stats"></div>
 
-<div class="box"><canvas id="chart"></canvas></div>
-
-<div class="box"><button onclick="pdf()">PDF REPORT</button></div>
-
 <script>
 
-let players=[],cur=0,sec=0,int,period=1,us=0,them=0,chart;
+let players=[],cur=0,sec=0,int,period=1,us=0,them=0;
 
+// INIT
 function init(){
     for(let i=0;i<15;i++){
-        players.push({nome:"G"+(i+1),gol:0,assist:0,err:0});
+        players.push({nome:"Giocatore "+(i+1),gol:0,assist:0,err:0});
     }
     draw();
 }
@@ -86,20 +88,36 @@ function updateScore(){
     document.getElementById("score").innerText=us+" - "+them;
 }
 
-// PLAYERS
+// INPUT NOMI
+function drawInputs(){
+    let h="";
+    players.forEach((p,i)=>{
+        h+=`<input id="p${i}" value="${p.nome}" style="width:30%;">`;
+    });
+    document.getElementById("inputs").innerHTML=h;
+}
+
+function saveNames(){
+    players.forEach((p,i)=>{
+        p.nome=document.getElementById("p"+i).value;
+    });
+    draw();
+}
+
+// GIOCATORI
 function draw(){
+    drawInputs();
     let h="";
     players.forEach((p,i)=>{
         h+=`<div class="player ${i==cur?'selected':''}" onclick="sel(${i})">${p.nome}</div>`;
     });
     document.getElementById("players").innerHTML=h;
     stats();
-    chartDraw();
 }
 
 function sel(i){cur=i;draw();}
 
-// STATS
+// STATISTICHE
 function stat(t){
     players[cur][t]++;
     draw();
@@ -115,34 +133,6 @@ function stats(){
         h+=`${p.nome} ⭐ ${score(p)}<br>`;
     });
     document.getElementById("stats").innerHTML=h;
-}
-
-// CHART
-function chartDraw(){
-    let l=players.map(p=>p.nome);
-    let d=players.map(p=>score(p));
-    if(chart) chart.destroy();
-    chart=new Chart(document.getElementById("chart"),{
-        type:"bar",
-        data:{labels:l,datasets:[{data:d}]}
-    });
-}
-
-// PDF
-function pdf(){
-    const { jsPDF } = window.jspdf;
-    let doc=new jsPDF();
-    let y=10;
-
-    doc.text("REPORT PARTITA",10,y); y+=10;
-    doc.text("Score: "+us+"-"+them,10,y); y+=10;
-
-    players.forEach(p=>{
-        doc.text(p.nome+" "+score(p),10,y);
-        y+=6;
-    });
-
-    doc.save("report.pdf");
 }
 
 // START
