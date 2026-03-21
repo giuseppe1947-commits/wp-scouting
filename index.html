@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WP COACH PRO</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 body {font-family: Arial; background:#0f172a; color:white; text-align:center;}
-button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:16px;}
+button {padding:12px;margin:5px;border-radius:10px;border:none;font-size:16px;}
 .player {padding:10px;margin:5px;border-radius:8px;background:#1e293b;}
 .selected {background:#2ecc71;}
 .box {background:#1e293b;padding:10px;margin:10px;border-radius:10px;}
@@ -33,21 +35,18 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 </div>
 
 <div class="box">
-<h3>⏱ <span id="time">00:00</span> | Tempo <span id="period">1</span></h3>
+<h3>⏱ <span id="time">00:00</span></h3>
 <button onclick="start()">START</button>
 <button onclick="stop()">STOP</button>
 <button onclick="reset()">RESET</button>
-<button onclick="next()">NEXT</button>
 </div>
 
-<!-- INSERIMENTO NOMI -->
 <div class="box">
-<h3>✍️ Inserisci nomi giocatori</h3>
+<h3>✍️ Nomi giocatori</h3>
 <div id="inputs"></div>
 <button onclick="saveNames()">Salva nomi</button>
 </div>
 
-<!-- GIOCATORI -->
 <div class="box" id="players"></div>
 
 <div class="box">
@@ -58,9 +57,15 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 
 <div class="box" id="stats"></div>
 
+<div class="box">
+<button onclick="saveMatch()">💾 Salva Partita</button>
+<button onclick="downloadPDF()">📄 PDF</button>
+</div>
+
 <script>
 
-let players=[],cur=0,sec=0,int,period=1,us=0,them=0;
+let players=[],cur=0,sec=0,int,us=0,them=0;
+let matchLog=[];
 
 // INIT
 function init(){
@@ -79,7 +84,6 @@ function update(){
     let s=String(sec%60).padStart(2,'0');
     document.getElementById("time").innerText=m+":"+s;
 }
-function next(){period++;document.getElementById("period").innerText=period;}
 
 // SCORE
 function goalUs(){us++;updateScore();}
@@ -117,9 +121,10 @@ function draw(){
 
 function sel(i){cur=i;draw();}
 
-// STATISTICHE
+// STAT
 function stat(t){
     players[cur][t]++;
+    matchLog.push(players[cur].nome+" "+t+" al minuto "+sec);
     draw();
 }
 
@@ -133,6 +138,44 @@ function stats(){
         h+=`${p.nome} ⭐ ${score(p)}<br>`;
     });
     document.getElementById("stats").innerHTML=h;
+}
+
+// SALVA PARTITA
+function saveMatch(){
+    alert("Partita salvata!");
+}
+
+// PDF
+function downloadPDF(){
+    const { jsPDF } = window.jspdf;
+    let doc=new jsPDF();
+
+    let y=10;
+
+    doc.text("REPORT PARTITA",10,y); y+=10;
+
+    doc.text("Squadra: "+document.getElementById("team").value,10,y); y+=8;
+    doc.text("Allenatore: "+document.getElementById("coach").value,10,y); y+=8;
+    doc.text("Avversario: "+document.getElementById("avv").value,10,y); y+=8;
+
+    doc.text("Risultato: "+us+"-"+them,10,y); y+=10;
+
+    doc.text("Statistiche:",10,y); y+=8;
+
+    players.forEach(p=>{
+        doc.text(p.nome+" G:"+p.gol+" A:"+p.assist+" E:"+p.err,10,y);
+        y+=6;
+    });
+
+    y+=5;
+    doc.text("Eventi partita:",10,y); y+=8;
+
+    matchLog.forEach(e=>{
+        doc.text("- "+e,10,y);
+        y+=6;
+    });
+
+    doc.save("report_partita.pdf");
 }
 
 // START
