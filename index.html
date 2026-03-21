@@ -6,7 +6,6 @@
 <title>WP ELITE SCOUTING PRO</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body {font-family: Arial; background:#0f172a; color:white; text-align:center;}
@@ -44,9 +43,7 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 <button onclick="salvaNomi()">Salva Nomi</button>
 </div>
 
-<div class="box">
-<div id="players"></div>
-</div>
+<div class="box" id="players"></div>
 
 <div class="box">
 <button onclick="addStat('gol')" class="green">GOL</button>
@@ -56,26 +53,9 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 <button onclick="addStat('fallo')" class="red">FALLO</button>
 </div>
 
-<div class="box"><div id="stats"></div></div>
+<div class="box" id="stats"></div>
 
 <div class="box"><h3>🏆 MVP</h3><div id="best"></div></div>
-
-<div class="box"><h3>🧠 Coach AI</h3><div id="coach"></div></div>
-
-<div class="box"><h3>📊 Analisi</h3><div id="advanced"></div></div>
-
-<div class="box">
-<button onclick="resetMatch()">🔄 Reset</button>
-<button onclick="salvaPartita()">💾 Salva</button>
-<button onclick="generaPDF()">📄 PDF</button>
-</div>
-
-<div class="box">
-<button onclick="exportData()">⬇️ Backup</button>
-<button onclick="importData()">⬆️ Ripristina</button>
-</div>
-
-<div class="box"><div id="storico"></div></div>
 
 <div class="box"><canvas id="chart"></canvas></div>
 
@@ -83,10 +63,18 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 
 let players=[], current=0, currentTeam="default", seconds=0, interval, chart;
 
+// INIT
 function init(){
     players=[];
     for(let i=0;i<15;i++){
-        players.push({nome:"Giocatore "+(i+1),gol:0,assist:0,rec:0,persa:0,fallo:0});
+        players.push({
+            nome:"Giocatore "+(i+1),
+            gol:0,
+            assist:0,
+            rec:0,
+            persa:0,
+            fallo:0
+        });
     }
     drawAll();
 }
@@ -108,8 +96,11 @@ function salvaSquadra(){
 
     if(!nome)return alert("Inserisci nome squadra");
 
-    let data={players:players, coach:coach};
-    localStorage.setItem("team_"+nome,JSON.stringify(data));
+    localStorage.setItem("team_"+nome,JSON.stringify({
+        players:players,
+        coach:coach
+    }));
+
     aggiornaLista();
 }
 
@@ -129,16 +120,15 @@ function caricaSquadra(){
     currentTeam=n;
 
     let data=JSON.parse(localStorage.getItem("team_"+n));
-
     if(data){
-        players=data.players || players;
+        players=data.players;
         document.getElementById("coachName").value=data.coach || "";
     }
 
     drawAll();
 }
 
-// INPUT
+// INPUT NOMI
 function drawInputs(){
     let h="";
     players.forEach((p,i)=>{
@@ -181,8 +171,6 @@ function addStat(tipo){
     drawStats();
     best();
     chartDraw();
-    document.getElementById("coach").innerText=coachAI();
-    analisi();
 }
 
 // STATS
@@ -200,50 +188,12 @@ function best(){
     document.getElementById("best").innerText=b.nome+" ("+score(b)+")";
 }
 
-// COACH AI
-function coachAI(){
-    let g=players.reduce((s,p)=>s+p.gol,0);
-    let e=players.reduce((s,p)=>s+p.persa+p.fallo,0);
-    if(e>g)return "⚠️ Troppi errori";
-    if(g>10)return "🔥 Dominio";
-    return "⚖️ Equilibrata";
-}
-
-// ANALISI
-function analisi(){
-    let tot=players.reduce((s,p)=>s+score(p),0);
-    let best3=[...players].sort((a,b)=>score(b)-score(a)).slice(0,3);
-    document.getElementById("advanced").innerHTML=
-    "Score Totale: "+tot+"<br><br>Top 3:<br>"+best3.map(p=>p.nome+" ("+score(p)+")").join("<br>");
-}
-
-// RESET
-function resetMatch(){
-    players.forEach(p=>{
-        p.gol=0;p.assist=0;p.rec=0;p.persa=0;p.fallo=0;
-    });
-    saveTeam();
-    drawAll();
-}
-
 // SAVE TEAM
 function saveTeam(){
-    localStorage.setItem("team_"+currentTeam,JSON.stringify({players:players, coach:document.getElementById("coachName").value}));
-}
-
-// MATCH SAVE
-function salvaPartita(){
-    let s=JSON.parse(localStorage.getItem("matches_"+currentTeam)) || [];
-    s.push({data:new Date().toLocaleString(), team:players});
-    localStorage.setItem("matches_"+currentTeam,JSON.stringify(s));
-    storico();
-}
-
-// STORICO
-function storico(){
-    let s=JSON.parse(localStorage.getItem("matches_"+currentTeam)) || [];
-    document.getElementById("storico").innerHTML=
-    s.map(x=>x.data).join("<br>");
+    localStorage.setItem("team_"+currentTeam,JSON.stringify({
+        players:players,
+        coach:document.getElementById("coachName").value
+    }));
 }
 
 // CHART
@@ -257,55 +207,7 @@ function chartDraw(){
     });
 }
 
-// PDF
-function generaPDF(){
-    const { jsPDF } = window.jspdf;
-    let doc=new jsPDF();
-    let y=10;
-
-    let coach=document.getElementById("coachName").value;
-    doc.text("Allenatore: "+coach,10,y);
-    y+=10;
-
-    doc.text("REPORT PARTITA",10,y);
-    y+=10;
-
-    players.forEach(p=>{
-        doc.text(p.nome+" "+score(p),10,y);
-        y+=6;
-    });
-
-    doc.save("report.pdf");
-}
-
-// BACKUP
-function exportData(){
-    let data=JSON.stringify(localStorage);
-    let blob=new Blob([data]);
-    let a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download="backup.json";
-    a.click();
-}
-
-function importData(){
-    let input=document.createElement("input");
-    input.type="file";
-    input.onchange=e=>{
-        let reader=new FileReader();
-        reader.onload=()=>{
-            let data=JSON.parse(reader.result);
-            for(let k in data){
-                localStorage.setItem(k,data[k]);
-            }
-            location.reload();
-        };
-        reader.readAsText(e.target.files[0]);
-    };
-    input.click();
-}
-
-// DRAW ALL
+// DRAW
 function drawAll(){
     drawInputs();
     drawPlayers();
@@ -321,5 +223,3 @@ init();
 
 </body>
 </html>
-
-
