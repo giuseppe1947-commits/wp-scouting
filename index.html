@@ -62,6 +62,12 @@ input {margin:3px;padding:8px;border-radius:5px;border:none;}
 <button onclick="downloadPDF()">📄 PDF</button>
 </div>
 
+<div class="box">
+<h3>📊 Storico Partite</h3>
+<div id="storico"></div>
+<button onclick="caricaStorico()">Aggiorna storico</button>
+</div>
+
 <script>
 
 let players=[],cur=0,sec=0,int,us=0,them=0;
@@ -69,9 +75,11 @@ let matchLog=[];
 
 // INIT
 function init(){
+    players=[];
     for(let i=0;i<15;i++){
         players.push({nome:"Giocatore "+(i+1),gol:0,assist:0,err:0});
     }
+    caricaStorico();
     draw();
 }
 
@@ -140,9 +148,43 @@ function stats(){
     document.getElementById("stats").innerHTML=h;
 }
 
-// SALVA PARTITA
+// SALVA PARTITA DEFINITIVO
 function saveMatch(){
+    let match = {
+        data: new Date().toLocaleString(),
+        squadra: document.getElementById("team").value,
+        coach: document.getElementById("coach").value,
+        avversario: document.getElementById("avv").value,
+        risultato: us+"-"+them,
+        players: players,
+        eventi: matchLog
+    };
+
+    let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
+    storico.push(match);
+
+    localStorage.setItem("storico_partite", JSON.stringify(storico));
+
     alert("Partita salvata!");
+    caricaStorico();
+}
+
+// STORICO
+function caricaStorico(){
+    let storico = JSON.parse(localStorage.getItem("storico_partite")) || [];
+
+    let h="";
+    storico.forEach(m=>{
+        h += `
+        <div style="border:1px solid white; margin:5px; padding:5px;">
+        ${m.data}<br>
+        ${m.squadra} vs ${m.avversario}<br>
+        Risultato: ${m.risultato}
+        </div>
+        `;
+    });
+
+    document.getElementById("storico").innerHTML = h;
 }
 
 // PDF
@@ -153,14 +195,10 @@ function downloadPDF(){
     let y=10;
 
     doc.text("REPORT PARTITA",10,y); y+=10;
-
     doc.text("Squadra: "+document.getElementById("team").value,10,y); y+=8;
     doc.text("Allenatore: "+document.getElementById("coach").value,10,y); y+=8;
     doc.text("Avversario: "+document.getElementById("avv").value,10,y); y+=8;
-
     doc.text("Risultato: "+us+"-"+them,10,y); y+=10;
-
-    doc.text("Statistiche:",10,y); y+=8;
 
     players.forEach(p=>{
         doc.text(p.nome+" G:"+p.gol+" A:"+p.assist+" E:"+p.err,10,y);
@@ -168,7 +206,7 @@ function downloadPDF(){
     });
 
     y+=5;
-    doc.text("Eventi partita:",10,y); y+=8;
+    doc.text("Eventi:",10,y); y+=8;
 
     matchLog.forEach(e=>{
         doc.text("- "+e,10,y);
