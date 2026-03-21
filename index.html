@@ -2,24 +2,22 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WP COACH PRO</title>
-
+<title>WP COACH PRO ELITE</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {font-family: Arial; background:#0f172a; color:white; text-align:center;}
-button {padding:10px;margin:5px;border-radius:10px;border:none;}
-.player {padding:10px;margin:5px;background:#1e293b;border-radius:8px;}
-.selected {background:#2ecc71;}
+body {background:#0f172a;color:white;font-family:Arial;text-align:center;}
 .box {background:#1e293b;margin:10px;padding:10px;border-radius:10px;}
-input {margin:3px;padding:6px;}
+.player {padding:8px;margin:4px;background:#334155;border-radius:6px;cursor:pointer;}
+.selected {background:#22c55e;}
+button {margin:5px;padding:8px;border-radius:8px;border:none;}
+input {margin:3px;padding:5px;}
 </style>
 </head>
 
 <body>
 
-<h2>🏊 WP COACH PRO</h2>
+<h2>🏊 WP COACH PRO ELITE</h2>
 
 <div class="box">
 <input id="team" placeholder="Squadra">
@@ -41,8 +39,8 @@ input {margin:3px;padding:6px;}
 </div>
 
 <div class="box">
-<button onclick="sprint('noi')">Sprint NOI</button>
-<button onclick="sprint('loro')">Sprint AVV</button>
+<button onclick="sprint('NOI')">Sprint NOI</button>
+<button onclick="sprint('AVV')">Sprint AVV</button>
 <div id="sprint"></div>
 </div>
 
@@ -64,7 +62,7 @@ input {margin:3px;padding:6px;}
 <div id="stats"></div>
 
 <div class="box">
-<button onclick="saveMatch()">💾 Salva Partita</button>
+<button onclick="saveMatch()">💾 Salva</button>
 <button onclick="downloadPDF()">📄 PDF</button>
 </div>
 
@@ -74,17 +72,17 @@ input {margin:3px;padding:6px;}
 </div>
 
 <script>
-
 let players=[],cur=0,sec=0,int,us=0,them=0;
-let matchLog=[],sprintWinner="";
+let log=[],sprintWinner="",editIndex=null;
 
 // INIT
 function init(){
+    players=[];
     for(let i=0;i<15;i++){
         players.push({nome:"G"+(i+1),gol:0,assist:0,espFatta:0,espSubita:0,err:0});
     }
-    caricaStorico();
     draw();
+    loadStorico();
 }
 
 // TIMER
@@ -142,7 +140,7 @@ function sel(i){cur=i;draw();}
 // STATS
 function stat(t){
     players[cur][t]++;
-    matchLog.push(players[cur].nome+" "+t+" min "+sec);
+    log.push(players[cur].nome+" "+t+" min "+sec);
     draw();
 }
 
@@ -158,42 +156,56 @@ function stats(){
     document.getElementById("stats").innerHTML=h;
 }
 
-// SALVA PARTITA
+// SAVE MATCH
 function saveMatch(){
-    let match={
+    let m={
         data:new Date().toLocaleString(),
         squadra:team.value,
         coach:coach.value,
         avversario:avv.value,
         risultato:us+"-"+them,
         players:players,
-        eventi:matchLog,
+        log:log,
         sprint:sprintWinner
     };
 
     let storico=JSON.parse(localStorage.getItem("storico"))||[];
-    storico.push(match);
+
+    if(editIndex!==null){
+        storico[editIndex]=m;
+        editIndex=null;
+    }else{
+        storico.push(m);
+    }
 
     localStorage.setItem("storico",JSON.stringify(storico));
-    alert("Salvata!");
-    caricaStorico();
+    alert("Salvato!");
+    loadStorico();
 }
 
 // STORICO
-function caricaStorico(){
+function loadStorico(){
     let storico=JSON.parse(localStorage.getItem("storico"))||[];
     let h="";
+
     storico.forEach((m,i)=>{
-        h+=`<div onclick="loadMatch(${i})" style="border:1px solid white;margin:5px;padding:5px;">
-        ${m.data}<br>${m.squadra} vs ${m.avversario}<br>${m.risultato}
+        h+=`
+        <div style="border:1px solid white;margin:5px;padding:10px;">
+        📅 ${m.data}<br>
+        ${m.squadra} vs ${m.avversario}<br>
+        ${m.risultato}<br>
+        <button onclick="openMatch(${i})">Apri</button>
+        <button onclick="editMatch(${i})">Modifica</button>
+        <button onclick="deleteMatch(${i})">Elimina</button>
         </div>`;
     });
+
     document.getElementById("storico").innerHTML=h;
 }
 
-// APRI PARTITA
-function loadMatch(i){
-    let storico=JSON.parse(localStorage.getItem("storico"))||[];
+// OPEN
+function openMatch(i){
+    let storico=JSON.parse(localStorage.getItem("storico"));
     let m=storico[i];
 
     team.value=m.squadra;
@@ -205,10 +217,24 @@ function loadMatch(i){
     updateScore();
 
     players=m.players;
-    matchLog=m.eventi;
-    sprintWinner=m.sprint;
+    log=m.log||[];
+    sprintWinner=m.sprint||"";
 
     draw();
+}
+
+// EDIT
+function editMatch(i){
+    editIndex=i;
+    openMatch(i);
+}
+
+// DELETE
+function deleteMatch(i){
+    let storico=JSON.parse(localStorage.getItem("storico"));
+    storico.splice(i,1);
+    localStorage.setItem("storico",JSON.stringify(storico));
+    loadStorico();
 }
 
 // PDF
@@ -217,8 +243,10 @@ function downloadPDF(){
     let doc=new jsPDF();
     let y=10;
 
-    doc.text("REPORT",10,y); y+=10;
-    doc.text("Score "+us+"-"+them,10,y); y+=10;
+    doc.text("REPORT PARTITA",10,y); y+=10;
+    doc.text(team.value+" vs "+avv.value,10,y); y+=10;
+    doc.text("Allenatore: "+coach.value,10,y); y+=10;
+    doc.text("Risultato "+us+"-"+them,10,y); y+=10;
 
     players.forEach(p=>{
         doc.text(p.nome+" G:"+p.gol+" A:"+p.assist,10,y);
