@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WP ELITE SCOUTING PRO</title>
+<title>WP ULTRA SCOUTING</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body {font-family: Arial; background:#0f172a; color:white; text-align:center;}
-input {padding:8px;margin:3px;width:28%;border-radius:8px;border:none;}
-button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;}
-.player {background:#1e293b;margin:5px;padding:8px;border-radius:8px;cursor:pointer;}
+button {padding:15px;margin:5px;border-radius:10px;border:none;font-size:18px;}
+.player {padding:10px;margin:5px;border-radius:8px;background:#1e293b;}
 .selected {background:#2ecc71;}
 .box {background:#1e293b;padding:10px;margin:10px;border-radius:10px;}
 .green{background:#2ecc71;} .red{background:#e74c3c;} .blue{background:#3498db;}
@@ -20,200 +20,133 @@ button {padding:10px;margin:5px;border-radius:10px;border:none;font-weight:bold;
 
 <body>
 
-<h2>🏊 WP ELITE SCOUTING PRO</h2>
+<h2>🏊 WP ULTRA SCOUTING</h2>
 
 <div class="box">
-<input id="teamName" placeholder="Nome squadra">
+<input id="teamName" placeholder="Squadra">
 <input id="coachName" placeholder="Allenatore">
-<button onclick="salvaSquadra()">💾 Salva Squadra</button>
-<select id="teamSelect" onchange="caricaSquadra()"></select>
+<button onclick="salva()">Salva</button>
 </div>
 
 <div class="box">
-<h3>⏱ Cronometro</h3>
-<div id="timer">00:00</div>
-<button onclick="startTimer()">START</button>
-<button onclick="stopTimer()">STOP</button>
-<button onclick="resetTimer()">RESET</button>
-</div>
-
-<div class="box">
-<h3>👥 Giocatori (15)</h3>
-<div id="inputs"></div>
-<button onclick="salvaNomi()">Salva Nomi</button>
+<h3>⏱ Tempo: <span id="tempo">00:00</span></h3>
+<h3>Periodo: <span id="periodo">1</span></h3>
+<button onclick="start()">START</button>
+<button onclick="stop()">STOP</button>
+<button onclick="reset()">RESET</button>
+<button onclick="nextPeriodo()">NEXT</button>
 </div>
 
 <div class="box" id="players"></div>
 
 <div class="box">
-<button onclick="addStat('gol')" class="green">GOL</button>
-<button onclick="addStat('assist')" class="blue">ASSIST</button>
-<button onclick="addStat('rec')">RECUPERO</button>
-<button onclick="addStat('persa')" class="red">PERSA</button>
-<button onclick="addStat('fallo')" class="red">FALLO</button>
+<button onclick="stat('gol')" class="green">GOL</button>
+<button onclick="stat('assist')" class="blue">ASSIST</button>
+<button onclick="stat('errore')" class="red">ERRORE</button>
+<button onclick="cambio()">CAMBIO</button>
 </div>
 
 <div class="box" id="stats"></div>
 
-<div class="box"><h3>🏆 MVP</h3><div id="best"></div></div>
-
 <div class="box"><canvas id="chart"></canvas></div>
+
+<div class="box">
+<button onclick="pdf()">PDF</button>
+</div>
 
 <script>
 
-let players=[], current=0, currentTeam="default", seconds=0, interval, chart;
+let players=[],current=0,sec=0,int,periodo=1,chart;
 
 // INIT
 function init(){
-    players=[];
     for(let i=0;i<15;i++){
-        players.push({
-            nome:"Giocatore "+(i+1),
-            gol:0,
-            assist:0,
-            rec:0,
-            persa:0,
-            fallo:0
-        });
+        players.push({nome:"G"+(i+1),gol:0,assist:0,errore:0});
     }
-    drawAll();
+    draw();
 }
 
 // TIMER
-function startTimer(){interval=setInterval(()=>{seconds++;updateTimer();},1000);}
-function stopTimer(){clearInterval(interval);}
-function resetTimer(){seconds=0;updateTimer();}
-function updateTimer(){
-    let m=String(Math.floor(seconds/60)).padStart(2,'0');
-    let s=String(seconds%60).padStart(2,'0');
-    document.getElementById("timer").innerText=m+":"+s;
+function start(){int=setInterval(()=>{sec++;update();},1000);}
+function stop(){clearInterval(int);}
+function reset(){sec=0;update();}
+function update(){
+    let m=String(Math.floor(sec/60)).padStart(2,'0');
+    let s=String(sec%60).padStart(2,'0');
+    document.getElementById("tempo").innerText=m+":"+s;
 }
 
-// TEAM
-function salvaSquadra(){
-    let nome=document.getElementById("teamName").value;
-    let coach=document.getElementById("coachName").value;
-
-    if(!nome)return alert("Inserisci nome squadra");
-
-    localStorage.setItem("team_"+nome,JSON.stringify({
-        players:players,
-        coach:coach
-    }));
-
-    aggiornaLista();
-}
-
-function aggiornaLista(){
-    let s=document.getElementById("teamSelect");
-    s.innerHTML="";
-    for(let k in localStorage){
-        if(k.startsWith("team_")){
-            let n=k.replace("team_","");
-            s.innerHTML+=`<option>${n}</option>`;
-        }
-    }
-}
-
-function caricaSquadra(){
-    let n=document.getElementById("teamSelect").value;
-    currentTeam=n;
-
-    let data=JSON.parse(localStorage.getItem("team_"+n));
-    if(data){
-        players=data.players;
-        document.getElementById("coachName").value=data.coach || "";
-    }
-
-    drawAll();
-}
-
-// INPUT NOMI
-function drawInputs(){
-    let h="";
-    players.forEach((p,i)=>{
-        h+=`<input id="p${i}" value="${p.nome}">`;
-    });
-    document.getElementById("inputs").innerHTML=h;
-}
-
-function salvaNomi(){
-    players.forEach((p,i)=>{
-        p.nome=document.getElementById("p"+i).value;
-    });
-    saveTeam();
-    drawPlayers();
+function nextPeriodo(){
+    periodo++;
+    document.getElementById("periodo").innerText=periodo;
 }
 
 // PLAYERS
-function drawPlayers(){
+function draw(){
     let h="";
     players.forEach((p,i)=>{
-        h+=`<div class="player ${i===current?'selected':''}" onclick="selectPlayer(${i})">${p.nome}</div>`;
+        h+=`<div class="player ${i==current?'selected':''}" onclick="sel(${i})">${p.nome}</div>`;
     });
     document.getElementById("players").innerHTML=h;
-}
-
-function selectPlayer(i){
-    current=i;
-    drawPlayers();
-}
-
-// SCORE
-function score(p){
-    return (p.gol*3 + p.assist*2 + p.rec*2) - (p.persa*2 + p.fallo*3);
-}
-
-// ACTION
-function addStat(tipo){
-    players[current][tipo]++;
-    saveTeam();
-    drawStats();
-    best();
+    stats();
     chartDraw();
 }
 
+function sel(i){current=i;draw();}
+
 // STATS
-function drawStats(){
+function stat(t){
+    players[current][t]++;
+    draw();
+}
+
+function score(p){
+    return p.gol*3+p.assist*2-p.errore*2;
+}
+
+function stats(){
     let h="";
     players.forEach(p=>{
-        h+=`<div>${p.nome} ⭐ ${score(p)}</div>`;
+        h+=`${p.nome} ⭐ ${score(p)}<br>`;
     });
     document.getElementById("stats").innerHTML=h;
 }
 
-// MVP
-function best(){
-    let b=players.reduce((a,b)=>score(a)>score(b)?a:b);
-    document.getElementById("best").innerText=b.nome+" ("+score(b)+")";
-}
-
-// SAVE TEAM
-function saveTeam(){
-    localStorage.setItem("team_"+currentTeam,JSON.stringify({
-        players:players,
-        coach:document.getElementById("coachName").value
-    }));
+// CAMBIO
+function cambio(){
+    alert("Cambio giocatore manuale");
 }
 
 // CHART
 function chartDraw(){
-    let labels=players.map(p=>p.nome);
-    let data=players.map(p=>score(p));
+    let l=players.map(p=>p.nome);
+    let d=players.map(p=>score(p));
     if(chart) chart.destroy();
     chart=new Chart(document.getElementById("chart"),{
         type:"bar",
-        data:{labels:labels,datasets:[{data:data}]}
+        data:{labels:l,datasets:[{data:d}]}
     });
 }
 
-// DRAW
-function drawAll(){
-    drawInputs();
-    drawPlayers();
-    drawStats();
-    chartDraw();
-    aggiornaLista();
+// SAVE
+function salva(){
+    localStorage.setItem("team",JSON.stringify(players));
+}
+
+// PDF
+function pdf(){
+    const { jsPDF } = window.jspdf;
+    let doc=new jsPDF();
+    let y=10;
+
+    doc.text("REPORT PARTITA",10,y); y+=10;
+
+    players.forEach(p=>{
+        doc.text(p.nome+" "+score(p),10,y);
+        y+=6;
+    });
+
+    doc.save("report.pdf");
 }
 
 // START
