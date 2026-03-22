@@ -11,7 +11,8 @@ body {background:#0f172a;color:white;font-family:Arial;text-align:center;}
 .box {background:#1e293b;margin:10px;padding:10px;border-radius:10px;}
 .player {padding:8px;margin:4px;background:#334155;border-radius:6px;cursor:pointer;}
 .selected {background:#22c55e;}
-button {margin:5px;padding:8px;border-radius:8px;border:none;}
+button {margin:5px;padding:10px;border-radius:8px;border:none;}
+.active {background:#22c55e;}
 input {margin:3px;padding:5px;}
 </style>
 </head>
@@ -28,8 +29,8 @@ input {margin:3px;padding:5px;}
 
 <div class="box">
 <h3 id="score">0 - 0</h3>
-<button onclick="goalUs()">+ NOI</button>
-<button onclick="goalThem()">+ AVV</button>
+<button onclick="goalUs(this)">+ NOI</button>
+<button onclick="goalThem(this)">+ AVV</button>
 </div>
 
 <div class="box">
@@ -46,6 +47,13 @@ input {margin:3px;padding:5px;}
 </div>
 
 <div class="box">
+<h3>🧤 Portiere (n°1)</h3>
+<input id="portiere" placeholder="Nome portiere">
+<button onclick="rigoreParato(this)">Rigore Parato</button>
+<div id="rigori"></div>
+</div>
+
+<div class="box">
 <div id="inputs"></div>
 <button onclick="saveNames()">Salva nomi</button>
 </div>
@@ -53,51 +61,46 @@ input {margin:3px;padding:5px;}
 <div id="players"></div>
 
 <div class="box">
-<button onclick="stat('gol')">GOL</button>
-<button onclick="stat('assist')">ASSIST</button>
-<button onclick="stat('espFatta')">ESP FATTA</button>
-<button onclick="stat('espSubita')">ESP SUBITA</button>
-<button onclick="stat('err')">ERRORE</button>
+<button onclick="stat('gol',this)">GOL</button>
+<button onclick="stat('assist',this)">ASSIST</button>
+<button onclick="stat('espFatta',this)">ESP FATTA</button>
+<button onclick="stat('espSubita',this)">ESP SUBITA</button>
+<button onclick="stat('err',this)">ERRORE</button>
+<button onclick="undo()">↩️ ANNULLA</button>
 </div>
 
 <div id="stats"></div>
 
-<div class="box">
-<button onclick="saveMatch()">💾 Salva</button>
-<button onclick="downloadPDF()">📄 PDF</button>
-</div>
-
-<div class="box">
-<h3>📊 Storico</h3>
-<div id="storico"></div>
-</div>
-
-<div class="box">
-<h3>📈 Analisi Squadra</h3>
-<div id="classifica"></div>
-<div id="topPlayer"></div>
-<button onclick="aggiornaAnalisi()">Aggiorna Statistiche</button>
-</div>
-
 <script>
-let players=[],cur=0,sec=0,int,us=0,them=0;
-let log=[],sprintWinner="",editIndex=null;
+
+let players=[],cur=0,sec=0,int=null,us=0,them=0;
+let log=[],sprintWinner="",rigori=0;
 
 // INIT
 function init(){
-    players=[];
     for(let i=0;i<15;i++){
         players.push({nome:"G"+(i+1),gol:0,assist:0,espFatta:0,espSubita:0,err:0});
     }
     draw();
-    loadStorico();
-    aggiornaAnalisi();
 }
 
 // TIMER
-function start(){int=setInterval(()=>{sec++;update();},1000);}
-function stop(){clearInterval(int);}
-function reset(){sec=0;update();}
+function start(){
+    if(int) return;
+    int=setInterval(()=>{sec++;update();},1000);
+}
+
+function stop(){
+    clearInterval(int);
+    int=null;
+}
+
+function reset(){
+    stop();
+    sec=0;
+    update();
+}
+
 function update(){
     let m=Math.floor(sec/60).toString().padStart(2,'0');
     let s=(sec%60).toString().padStart(2,'0');
@@ -105,8 +108,16 @@ function update(){
 }
 
 // SCORE
-function goalUs(){us++;updateScore();}
-function goalThem(){them++;updateScore();}
+function goalUs(btn){
+    us++;updateScore();
+    flash(btn);
+}
+
+function goalThem(btn){
+    them++;updateScore();
+    flash(btn);
+}
+
 function updateScore(){
     document.getElementById("score").innerText=us+" - "+them;
 }
@@ -115,6 +126,14 @@ function updateScore(){
 function sprint(v){
     sprintWinner=v;
     document.getElementById("sprint").innerText="Sprint: "+v;
+}
+
+// PORTIERE
+function rigoreParato(btn){
+    rigori++;
+    document.getElementById("rigori").innerText="Rigori parati: "+rigori;
+    log.push("Rigore parato");
+    flash(btn);
 }
 
 // INPUT
@@ -147,10 +166,24 @@ function draw(){
 function sel(i){cur=i;draw();}
 
 // STATS
-function stat(t){
+function stat(t,btn){
     players[cur][t]++;
     log.push(players[cur].nome+" "+t+" min "+sec);
+    flash(btn);
     draw();
+}
+
+// ANNULLA
+function undo(){
+    if(log.length===0) return;
+    log.pop();
+    alert("Ultima azione annullata (statistiche manuali)");
+}
+
+// EVIDENZIA PULSANTE
+function flash(btn){
+    btn.classList.add("active");
+    setTimeout(()=>btn.classList.remove("active"),300);
 }
 
 function score(p){
@@ -165,157 +198,6 @@ function stats(){
     document.getElementById("stats").innerHTML=h;
 }
 
-// SAVE MATCH
-function saveMatch(){
-    let m={
-        data:new Date().toLocaleString(),
-        squadra:team.value,
-        coach:coach.value,
-        avversario:avv.value,
-        risultato:us+"-"+them,
-        players:players,
-        log:log,
-        sprint:sprintWinner
-    };
-
-    let storico=JSON.parse(localStorage.getItem("storico"))||[];
-
-    if(editIndex!==null){
-        storico[editIndex]=m;
-        editIndex=null;
-    }else{
-        storico.push(m);
-    }
-
-    localStorage.setItem("storico",JSON.stringify(storico));
-    alert("Salvato!");
-    loadStorico();
-    aggiornaAnalisi();
-}
-
-// STORICO
-function loadStorico(){
-    let storico=JSON.parse(localStorage.getItem("storico"))||[];
-    let h="";
-
-    storico.forEach((m,i)=>{
-        h+=`
-        <div style="border:1px solid white;margin:5px;padding:10px;">
-        📅 ${m.data}<br>
-        ${m.squadra} vs ${m.avversario}<br>
-        ${m.risultato}<br>
-        <button onclick="openMatch(${i})">Apri</button>
-        <button onclick="editMatch(${i})">Modifica</button>
-        <button onclick="deleteMatch(${i})">Elimina</button>
-        </div>`;
-    });
-
-    document.getElementById("storico").innerHTML=h;
-}
-
-// OPEN
-function openMatch(i){
-    let storico=JSON.parse(localStorage.getItem("storico"));
-    let m=storico[i];
-
-    team.value=m.squadra;
-    coach.value=m.coach;
-    avv.value=m.avversario;
-
-    let r=m.risultato.split("-");
-    us=parseInt(r[0]); them=parseInt(r[1]);
-    updateScore();
-
-    players=m.players;
-    log=m.log||[];
-    sprintWinner=m.sprint||"";
-
-    draw();
-}
-
-// EDIT
-function editMatch(i){
-    editIndex=i;
-    openMatch(i);
-}
-
-// DELETE
-function deleteMatch(i){
-    let storico=JSON.parse(localStorage.getItem("storico"));
-    storico.splice(i,1);
-    localStorage.setItem("storico",JSON.stringify(storico));
-    loadStorico();
-    aggiornaAnalisi();
-}
-
-// PDF
-function downloadPDF(){
-    const { jsPDF } = window.jspdf;
-    let doc=new jsPDF();
-    let y=10;
-
-    doc.text("REPORT PARTITA",10,y); y+=10;
-    doc.text(team.value+" vs "+avv.value,10,y); y+=10;
-    doc.text("Allenatore: "+coach.value,10,y); y+=10;
-    doc.text("Risultato "+us+"-"+them,10,y); y+=10;
-
-    players.forEach(p=>{
-        doc.text(p.nome+" G:"+p.gol+" A:"+p.assist,10,y);
-        y+=6;
-    });
-
-    doc.save("report.pdf");
-}
-
-// CLASSIFICA
-function classifica(){
-    let storico=JSON.parse(localStorage.getItem("storico"))||[];
-
-    let punti=0,v=0,p=0,s=0,fatti=0,subiti=0;
-
-    storico.forEach(m=>{
-        let r=m.risultato.split("-");
-        let us=parseInt(r[0]);
-        let avv=parseInt(r[1]);
-
-        fatti+=us;
-        subiti+=avv;
-
-        if(us>avv){punti+=3;v++;}
-        else if(us==avv){punti+=1;p++;}
-        else{s++;}
-    });
-
-    document.getElementById("classifica").innerHTML=
-    `🏆 ${punti} punti<br>Vittorie ${v}<br>Pareggi ${p}<br>Sconfitte ${s}<br>GF ${fatti} GS ${subiti}`;
-}
-
-// MIGLIOR GIOCATORE
-function migliorGiocatore(){
-    let storico=JSON.parse(localStorage.getItem("storico"))||[];
-    let tot={};
-
-    storico.forEach(m=>{
-        m.players.forEach(p=>{
-            if(!tot[p.nome]) tot[p.nome]={pt:0};
-            tot[p.nome].pt+=p.gol*3+p.assist*2;
-        });
-    });
-
-    let best="",max=0;
-    for(let n in tot){
-        if(tot[n].pt>max){max=tot[n].pt;best=n;}
-    }
-
-    document.getElementById("topPlayer").innerHTML=
-    "🥇 "+best+" ("+max+" pt)";
-}
-
-function aggiornaAnalisi(){
-    classifica();
-    migliorGiocatore();
-}
-
 // START
 init();
 
@@ -323,3 +205,4 @@ init();
 
 </body>
 </html>
+
