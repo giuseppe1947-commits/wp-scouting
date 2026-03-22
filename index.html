@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>WP COACH PRO ELITE</title>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -71,6 +72,13 @@ input {margin:3px;padding:5px;}
 <div id="storico"></div>
 </div>
 
+<div class="box">
+<h3>📈 Analisi Squadra</h3>
+<div id="classifica"></div>
+<div id="topPlayer"></div>
+<button onclick="aggiornaAnalisi()">Aggiorna Statistiche</button>
+</div>
+
 <script>
 let players=[],cur=0,sec=0,int,us=0,them=0;
 let log=[],sprintWinner="",editIndex=null;
@@ -83,6 +91,7 @@ function init(){
     }
     draw();
     loadStorico();
+    aggiornaAnalisi();
 }
 
 // TIMER
@@ -181,6 +190,7 @@ function saveMatch(){
     localStorage.setItem("storico",JSON.stringify(storico));
     alert("Salvato!");
     loadStorico();
+    aggiornaAnalisi();
 }
 
 // STORICO
@@ -235,6 +245,7 @@ function deleteMatch(i){
     storico.splice(i,1);
     localStorage.setItem("storico",JSON.stringify(storico));
     loadStorico();
+    aggiornaAnalisi();
 }
 
 // PDF
@@ -254,6 +265,55 @@ function downloadPDF(){
     });
 
     doc.save("report.pdf");
+}
+
+// CLASSIFICA
+function classifica(){
+    let storico=JSON.parse(localStorage.getItem("storico"))||[];
+
+    let punti=0,v=0,p=0,s=0,fatti=0,subiti=0;
+
+    storico.forEach(m=>{
+        let r=m.risultato.split("-");
+        let us=parseInt(r[0]);
+        let avv=parseInt(r[1]);
+
+        fatti+=us;
+        subiti+=avv;
+
+        if(us>avv){punti+=3;v++;}
+        else if(us==avv){punti+=1;p++;}
+        else{s++;}
+    });
+
+    document.getElementById("classifica").innerHTML=
+    `🏆 ${punti} punti<br>Vittorie ${v}<br>Pareggi ${p}<br>Sconfitte ${s}<br>GF ${fatti} GS ${subiti}`;
+}
+
+// MIGLIOR GIOCATORE
+function migliorGiocatore(){
+    let storico=JSON.parse(localStorage.getItem("storico"))||[];
+    let tot={};
+
+    storico.forEach(m=>{
+        m.players.forEach(p=>{
+            if(!tot[p.nome]) tot[p.nome]={pt:0};
+            tot[p.nome].pt+=p.gol*3+p.assist*2;
+        });
+    });
+
+    let best="",max=0;
+    for(let n in tot){
+        if(tot[n].pt>max){max=tot[n].pt;best=n;}
+    }
+
+    document.getElementById("topPlayer").innerHTML=
+    "🥇 "+best+" ("+max+" pt)";
+}
+
+function aggiornaAnalisi(){
+    classifica();
+    migliorGiocatore();
 }
 
 // START
