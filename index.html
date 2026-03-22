@@ -47,9 +47,9 @@ input {margin:3px;padding:5px;}
 </div>
 
 <div class="box">
-<h3>🧤 Portiere (n°1)</h3>
+<h3>🧤 Portiere</h3>
 <input id="portiere" placeholder="Nome portiere">
-<button onclick="rigoreParato(this)">Rigore Parato</button>
+<button onclick="rigoreParato(this)">Rigore parato</button>
 <div id="rigori"></div>
 </div>
 
@@ -71,6 +71,16 @@ input {margin:3px;padding:5px;}
 
 <div id="stats"></div>
 
+<div class="box">
+<button onclick="saveMatch()">💾 Salva</button>
+<button onclick="downloadPDF()">📄 PDF</button>
+</div>
+
+<div class="box">
+<h3>📊 Storico</h3>
+<div id="storico"></div>
+</div>
+
 <script>
 
 let players=[],cur=0,sec=0,int=null,us=0,them=0;
@@ -78,9 +88,22 @@ let log=[],sprintWinner="",rigori=0;
 
 // INIT
 function init(){
+
+    // 🔥 RECUPERO AUTOMATICO DATI VECCHI
+    let old = JSON.parse(localStorage.getItem("storico_partite"));
+    let nuovo = JSON.parse(localStorage.getItem("storico"));
+
+    if(old && !nuovo){
+        localStorage.setItem("storico", JSON.stringify(old));
+        alert("Storico recuperato!");
+    }
+
+    players=[];
     for(let i=0;i<15;i++){
         players.push({nome:"G"+(i+1),gol:0,assist:0,espFatta:0,espSubita:0,err:0});
     }
+
+    loadStorico();
     draw();
 }
 
@@ -89,18 +112,15 @@ function start(){
     if(int) return;
     int=setInterval(()=>{sec++;update();},1000);
 }
-
 function stop(){
     clearInterval(int);
     int=null;
 }
-
 function reset(){
     stop();
     sec=0;
     update();
 }
-
 function update(){
     let m=Math.floor(sec/60).toString().padStart(2,'0');
     let s=(sec%60).toString().padStart(2,'0');
@@ -108,16 +128,8 @@ function update(){
 }
 
 // SCORE
-function goalUs(btn){
-    us++;updateScore();
-    flash(btn);
-}
-
-function goalThem(btn){
-    them++;updateScore();
-    flash(btn);
-}
-
+function goalUs(btn){us++;updateScore();flash(btn);}
+function goalThem(btn){them++;updateScore();flash(btn);}
 function updateScore(){
     document.getElementById("score").innerText=us+" - "+them;
 }
@@ -144,7 +156,6 @@ function drawInputs(){
     });
     document.getElementById("inputs").innerHTML=h;
 }
-
 function saveNames(){
     players.forEach((p,i)=>{
         p.nome=document.getElementById("p"+i).value;
@@ -162,7 +173,6 @@ function draw(){
     document.getElementById("players").innerHTML=h;
     stats();
 }
-
 function sel(i){cur=i;draw();}
 
 // STATS
@@ -172,15 +182,11 @@ function stat(t,btn){
     flash(btn);
     draw();
 }
-
-// ANNULLA
 function undo(){
     if(log.length===0) return;
     log.pop();
-    alert("Ultima azione annullata (statistiche manuali)");
+    alert("Ultima azione annullata");
 }
-
-// EVIDENZIA PULSANTE
 function flash(btn){
     btn.classList.add("active");
     setTimeout(()=>btn.classList.remove("active"),300);
@@ -189,13 +195,99 @@ function flash(btn){
 function score(p){
     return p.gol*3+p.assist*2+p.espFatta*2-p.espSubita-p.err*2;
 }
-
 function stats(){
     let h="";
     players.forEach(p=>{
         h+=p.nome+" ⭐ "+score(p)+"<br>";
     });
     document.getElementById("stats").innerHTML=h;
+}
+
+// SALVA PARTITA
+function saveMatch(){
+    let m={
+        data:new Date().toLocaleString(),
+        squadra:team.value,
+        coach:coach.value,
+        avversario:avv.value,
+        risultato:us+"-"+them,
+        players:players,
+        log:log,
+        sprint:sprintWinner
+    };
+
+    let storico=JSON.parse(localStorage.getItem("storico"))||[];
+    storico.push(m);
+    localStorage.setItem("storico",JSON.stringify(storico));
+
+    alert("Salvato!");
+    loadStorico();
+}
+
+// STORICO
+function loadStorico(){
+    let storico=JSON.parse(localStorage.getItem("storico"))
+               || JSON.parse(localStorage.getItem("storico_partite"))
+               || [];
+
+    let h="";
+    storico.forEach((m,i)=>{
+        h+=`
+        <div onclick="openMatch(${i})"
+        style="border:1px solid white;margin:5px;padding:10px;cursor:pointer;">
+        📅 ${m.data||""}<br>
+        ${m.squadra||""} vs ${m.avversario||""}<br>
+        ${m.risultato||""}
+        </div>`;
+    });
+
+    document.getElementById("storico").innerHTML=h;
+}
+
+// APRI PARTITA
+function openMatch(i){
+    let storico=JSON.parse(localStorage.getItem("storico"))
+               || JSON.parse(localStorage.getItem("storico_partite"))
+               || [];
+
+    let m=storico[i];
+    if(!m) return;
+
+    team.value=m.squadra||"";
+    coach.value=m.coach||"";
+    avv.value=m.avversario||"";
+
+    if(m.risultato){
+        let r=m.risultato.split("-");
+        us=parseInt(r[0])||0;
+        them=parseInt(r[1])||0;
+        updateScore();
+    }
+
+    players=m.players||players;
+    log=m.log||m.eventi||[];
+    sprintWinner=m.sprint||"";
+
+    draw();
+}
+
+// PDF
+function downloadPDF(){
+    const { jsPDF } = window.jspdf;
+    let doc=new jsPDF();
+    let y=10;
+
+    doc.text("REPORT PARTITA",10,y); y+=10;
+    doc.text(team.value+" vs "+avv.value,10,y); y+=10;
+    doc.text("Allenatore: "+coach.value,10,y); y+=10;
+    doc.text("Risultato "+us+"-"+them,10,y); y+=10;
+
+    players.forEach(p=>{
+        doc.text(p.nome+" G:"+p.gol+" A:"+p.assist,10,y);
+        y+=6;
+    });
+
+    doc.save("report.pdf");
 }
 
 // START
